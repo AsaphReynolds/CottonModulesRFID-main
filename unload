@@ -1,0 +1,290 @@
+#This will use the OpenCV library to handle camera input, 1 from the main camera, and 2 from the auxillary safety cameras
+
+#The GUI Library used is pyQT
+#IP Cameras are streamed usign RTSP
+
+import sys 
+from pathlib import Path
+
+from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton
+from PyQt6.QtGui import QFont, QIcon, QPixmap, QImage
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+import cv2
+
+class MainWindow(QMainWindow):
+    ROOT_DIR = Path(__file__).parent
+    print(ROOT_DIR / "IwoJima.png")
+
+    IP1 = "rtsp://71.43.10.26:9080/axis-cgi/mjpg/video.cgi"
+    def __init__(self):
+        super(MainWindow, self).__init__()
+        self.setWindowTitle("WINDOW TITLE")
+        self.setGeometry(0,0,600,400)
+        self.initUI()
+
+    def initUI(self):
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+
+        #Define labels 
+        weight_label = QLabel("Weight = ", self)
+        #weight_label.setFont(QFont("Arial", 20))
+        #weight_label.setGeometry((self.width()-500)//2, (self.height()-100)//2,500,100)
+        weight_label.setStyleSheet("color: green;" "background-color: white;") #Use CSS properties to modify text
+        #weight_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        #weight_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        weight_label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom)
+
+        label = QLabel("LABEL", self)
+        label.setStyleSheet("color: orange;" "background-color: blue;")
+
+
+        '''
+        img1_lbl = QLabel(self)
+        img1_lbl.setGeometry(0,0,10,10)
+        imgpath = str(self.ROOT_DIR / "IwoJima.png")
+        pixmap = QPixmap(imgpath)
+        img1_lbl.setPixmap(pixmap)
+        img1_lbl.setScaledContents(True)
+        '''
+
+        self.feed_lbl = QLabel()
+
+
+        self.pausevideo_btn = QPushButton("Pause Video Feed")
+        self.pausevideo_btn.clicked.connect(self.pausefeed)
+        #Create Grid Layout Manager
+        grid = QGridLayout()
+        grid.addWidget(self.feed_lbl)
+        grid.addWidget(label, 1,0)
+        grid.addWidget(weight_label, 1,1)
+
+        self.Worker1 = worker1()
+        self.Worker1.ImageUpdate.connect(self.ImageUpdateSlot)
+        self.Worker1.start()
+
+        central_widget.setLayout(grid)
+
+    def ImageUpdateSlot(self, Image):
+        self.feed_lbl.setPixmap(QPixmap.fromImage(Image))
+        pass
+        
+        #self.setWindowIcon(QIcon("/filepath"))
+
+    def pausefeed(self):
+        self.Worker1.stop()
+        
+class worker1(QThread):
+    ImageUpdate = pyqtSignal(QImage)    
+    def run(self):
+        self.thread_isActive = True
+        Capture = cv2.VideoCapture(0)
+        while self.thread_isActive:
+            ret, frame = Capture.read()
+            if ret:
+                Image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                FlippedImage = cv2.flip(Image, 1) #flip image on vertical axis
+                ConvertToQtFormat = QImage(FlippedImage.data, FlippedImage.shape[1], FlippedImage.shape[0], QImage.Format.Format_RGB888)
+                Pic = ConvertToQtFormat.scaled(640, 480, Qt.AspectRatioMode.KeepAspectRatio)
+                self.ImageUpdate.emit(Pic)
+
+        Capture.release()
+        cv2.destroyAllWindows()
+    def stop(self):
+        self.thread_isActive = False
+        self.quit()
+
+    
+def main():
+    #Main will be called when the application begins
+    app = QApplication(sys.argv) #This will allow the possiblility for command line functionality in the future.
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
+    pass
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+
+
+
+#VERSION 2
+
+#This will use the OpenCV library to handle camera input, 1 from the main camera, and 2 from the auxillary safety cameras
+
+#The GUI Library used is pyQT
+#IP Cameras are streamed usign RTSP
+
+import sys 
+from pathlib import Path
+
+from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton
+from PyQt6.QtGui import QFont, QIcon, QPixmap, QImage
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+import cv2
+from vidgear.gears import VideoGear
+import imutils
+
+M_Camera_IP = "http://218.219.214.248:50000/nphMotionJpeg?Resolution=640x480"
+S_Camera1_IP = "http://185.108.19.197:10800/axis-cgi/mjpg/video.cgi"
+S_Camera2_IP = "http://218.219.195.24/nphMotionJpeg?Resolution=640x480"
+
+class MainWindow(QMainWindow):
+    ROOT_DIR = Path(__file__).parent
+    print(ROOT_DIR / "IwoJima.png")
+
+    IP1 = "rtsp://71.43.10.26:9080/axis-cgi/mjpg/video.cgi"
+    def __init__(self):
+        super(MainWindow, self).__init__()
+        self.setWindowTitle("WINDOW TITLE")
+        self.setGeometry(0,0,600,400)
+        self.initUI()
+
+    def initUI(self):
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+
+        #Define labels 
+        weight_label = QLabel("Weight = ", self)
+        #weight_label.setFont(QFont("Arial", 20))
+        #weight_label.setGeometry((self.width()-500)//2, (self.height()-100)//2,500,100)
+        weight_label.setStyleSheet("color: green;" "background-color: white;") #Use CSS properties to modify text
+        #weight_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        #weight_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        weight_label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom)
+
+        label = QLabel("LABEL", self)
+        label.setStyleSheet("color: orange;" "background-color: blue;")
+
+
+        '''
+        img1_lbl = QLabel(self)
+        img1_lbl.setGeometry(0,0,10,10)
+        imgpath = str(self.ROOT_DIR / "IwoJima.png")
+        pixmap = QPixmap(imgpath)
+        img1_lbl.setPixmap(pixmap)
+        img1_lbl.setScaledContents(True)
+        '''
+
+        self.feed1_lbl = QLabel()
+        self.feed2_lbl = QLabel()
+        self.feed3_lbl = QLabel()
+
+        self.feed2_lbl.setStyleSheet("background-color: red;")
+        self.feed3_lbl.setStyleSheet("background-color: green;")
+
+        self.pausevideo_btn = QPushButton("Pause Video Feed")
+        self.pausevideo_btn.clicked.connect(self.pausefeed)
+        self.pausevideo_btn.setStyleSheet("color: yellow;" "background-color: blue;")
+
+        #STYLING UI 
+
+
+        #Create Grid Layout Manager
+        grid = QGridLayout()
+        grid.addWidget(self.feed1_lbl, 0,0)
+        grid.addWidget(self.feed2_lbl, 0,1)
+        grid.addWidget(self.feed3_lbl, 0,2)
+        grid.addWidget(label, 1,0)
+        grid.addWidget(weight_label, 1,1)
+        grid.addWidget(self.pausevideo_btn, 1,2)
+
+        self.camThread1 = camThread()
+        self.camThread1.src = M_Camera_IP
+        self.camThread1.ImageUpdate.connect(self.ImageUpdateSlot)
+        self.camThread1.start()
+
+        central_widget.setLayout(grid)
+
+    def ImageUpdateSlot(self, Image):
+        self.feed1_lbl.setPixmap(QPixmap.fromImage(Image))
+        pass
+        
+        #self.setWindowIcon(QIcon("/filepath"))
+
+    def pausefeed(self):
+        self.camThread1.stop()
+        
+class camThread(QThread):
+    src = None
+    ImageUpdate = pyqtSignal(QImage)    
+
+    def run(self):
+        self.thread_isActive = True
+        
+
+        #print(cv2.getBuildInformation())
+        #CAP1 = cv2.VideoCapture(M_Camera_IP)
+        CAP2 = cv2.VideoCapture(S_Camera1_IP)
+        CAP3 = cv2.VideoCapture(S_Camera2_IP)
+        CAP = VideoGear(source= self.src, logging=True).start()
+        
+
+        '''if not CAP1.isOpened():
+            print("ERROR Opening Video Stream 1")'''
+        if not CAP2.isOpened():
+            print("ERROR Opening Video Stream 2")
+        if not CAP3.isOpened():
+            print("ERROR Opening Video Stream 3")
+
+        #Attempt to set the video resolution
+        '''CAP1.set(cv2.CAP_PROP_FRAME_WIDTH, 500)
+        CAP1.set(cv2.CAP_PROP_FRAME_HEIGHT, 500)'''
+
+        while self.thread_isActive:
+            CAP1_frame = CAP1.read()
+            #cv2.imshow("HTTP Stream", frame)
+            Image = cv2.cvtColor(CAP1_frame, cv2.COLOR_BGR2RGB)
+            #ConvertToQtFormat = QImage(FlippedImage.data, FlippedImage.shape[1], FlippedImage.shape[0], QImage.Format.Format_RGB888)
+            #FlippedImage = cv2.flip(Image, 1) #flip image on vertical axis
+
+            ConvertToQtFormat = QImage(Image.data, Image.shape[1], Image.shape[0], QImage.Format.Format_RGB888)
+            Pic = ConvertToQtFormat.scaled(640, 480, Qt.AspectRatioMode.KeepAspectRatio)
+            self.ImageUpdate.emit(Pic)
+            
+
+            if cv2.waitKey(1) & 0xFF ==ord('q'):
+                break
+
+        CAP1.release()
+        CAP2.release()
+        CAP3.release()
+
+        cv2.destroyAllWindows()
+
+    def handle_capture(self,CAP):
+        pass
+
+
+    def stop(self):
+        self.thread_isActive = False
+        self.quit()
+
+    
+def main():
+    #Main will be called when the application begins
+    app = QApplication(sys.argv) #This will allow the possiblility for command line functionality in the future.
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
+    pass
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+
+
+
+
+

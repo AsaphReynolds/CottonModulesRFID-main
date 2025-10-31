@@ -1,0 +1,39 @@
+import time
+from pymodbus.client import ModbusTcpClient
+
+# Watchdog configuration (check your device documentation)
+WATCHDOG_REGISTER = 100
+WATCHDOG_VALUE = 0xAAAA  # Common value, but specific to your device
+WATCHDOG_INTERVAL = 2  # Time in seconds between resets
+
+# Create a Modbus TCP client instance
+client = ModbusTcpClient("your_server_ip", port=502)
+
+try:
+    # Connect to the Modbus server
+    if not client.connect():
+        print("Failed to connect to Modbus server.")
+        exit()
+
+    print("Connected to Modbus server. Starting watchdog reset loop...")
+
+    while True:
+        # Write the watchdog value to the holding register
+        result = client.write_register(WATCHDOG_REGISTER, WATCHDOG_VALUE, slave=1)
+
+        # Check for successful write
+        if result.isError():
+            print(f"Error resetting watchdog: {result}")
+        else:
+            print(f"Successfully reset watchdog at register {WATCHDOG_REGISTER}")
+
+        # Wait for the next reset interval
+        time.sleep(WATCHDOG_INTERVAL)
+
+except KeyboardInterrupt:
+    print("\nWatchdog reset stopped by user.")
+
+finally:
+    # Close the client connection
+    client.close()
+    print("Modbus connection closed.")
