@@ -1,0 +1,37 @@
+{
+    "antennaConfigs": [
+        {
+            "antennaPort": 1,
+            "estimatedTagPopulation": 4,
+            "fastId": "disabled",
+            "inventorySearchMode": "dual-target",
+            "inventorySession": 1,
+            "rfMode": 4,
+            "transmitPowerCdbm": 3000
+        }
+    ],
+    "eventConfig": {
+        "common": {
+            "hostname": "enabled"
+        },
+        "tagInventory": {
+            "epc": "disabled",
+            "epcHex": "enabled",
+            "tid": "disabled",
+            "tidHex": "disabled",
+            "antennaPort": "enabled",
+            "transmitPowerCdbm": "enabled",
+            "peakRssiCdbm": "enabled",
+            "frequency": "disabled",
+            "pc": "disabled",
+            "lastSeenTime": "disabled",
+            "phaseAngle": "disabled",
+            "tagReporting": {
+                "reportingIntervalSeconds": 0,
+                "tagCacheSize": 2048,
+                "antennaIdentifier": "antennaPort",
+                "tagIdentifier": "epc"
+            }
+        }
+    }
+}

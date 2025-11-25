@@ -1,0 +1,53 @@
+{
+    "antennaConfigs": [
+        {
+            "antennaPort": 1,
+            "estimatedTagPopulation": 2,
+            "fastId": "disabled",
+            "inventorySearchMode": "dual-target",
+            "inventorySession": 1,
+            "rfMode": 4,
+            "transmitPowerCdbm": 3000,
+            "tagAccessPasswordHex": "00000000",
+            "tagAccessPasswordWriteHex": "12345678",
+            "tagSecurityModesWrite": {
+                "protected": true,
+                "shortRange": false
+            },
+            "filtering": {
+                "filters": [
+                    {
+                        "action": "include",
+                        "bitOffset": 32,
+                        "mask": "37000714A5021F800558322B",
+                        "tagMemoryBank": "epc"
+                    }
+                ]
+            }
+        }
+    ],
+    "eventConfig": {
+        "common": {
+            "hostname": "enabled"
+        },
+        "tagInventory": {
+            "epc": "disabled",
+            "epcHex": "enabled",
+            "tid": "disabled",
+            "tidHex": "disabled",
+            "antennaPort": "enabled",
+            "transmitPowerCdbm": "enabled",
+            "peakRssiCdbm": "enabled",
+            "frequency": "disabled",
+            "pc": "disabled",
+            "lastSeenTime": "disabled",
+            "phaseAngle": "disabled",
+            "tagReporting": {
+                "reportingIntervalSeconds": 0,
+                "tagCacheSize": 2048,
+                "antennaIdentifier": "antennaPort",
+                "tagIdentifier": "epc"
+            }
+        }
+    }
+}

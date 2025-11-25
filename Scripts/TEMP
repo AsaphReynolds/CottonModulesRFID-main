@@ -37,3 +37,24 @@ finally:
     # Close the client connection
     client.close()
     print("Modbus connection closed.")
+
+
+
+
+//11-21-25
+
+
+
+
+
+
+
+
+
+            grid = QGridLayout()
+        grid.addWidget(self.feed1_lbl, 0,0)
+        grid.addWidget(self.weight_lbl, 2,0,alignment= Qt.AlignmentFlag.AlignRight)
+        grid.addWidget(self.sm_lbl, 2,1,alignment= Qt.AlignmentFlag.AlignRight)
+        grid.addWidget(self.lm_lbl, 2,2,alignment= Qt.AlignmentFlag.AlignLeft)
+        grid.addWidget(self.RFID_lbl, 2,3,alignment= Qt.AlignmentFlag.AlignLeft)
+        grid.addWidget(self.addModule_btn, 1,4, alignment= Qt.AlignmentFlag.AlignRight)
