@@ -8,6 +8,18 @@ from scipy.interpolate import interp1d
 
 import cv2
 
+import pandas as pd
+
+
+modules_dict_framework = {
+        "Grower/Farm" : ['ABE'],
+        "Module Name": ['Identifier'],
+        "Module RFID": ['00000'],
+        "Weight": [0],
+        "Lint Moisture":[100],
+        "Seed Moisture": [0]
+    }
+
 class InclonometerData:
     angleX=0
     angleY=0
@@ -141,6 +153,25 @@ class Popup(QDialog):
         self.setLayout(self.layout)
 
 
+class GetInputDialog(QDialog):
+    def __init__(self, message, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Please Enter Required Information")
+        self.layout = QVBoxLayout()
+        self.label = QLabel(message)
+        self.layout.addWidget(self.label)
+        self.farmname_lbl = QLabel("Grower/Farm Name: ")
+        self.farmname_ledit = QLineEdit()
+        self.farmname_ledit.setPlaceholderText("Enter the name of the current Grower/Farm")
+        self.layout.addWidget(self.farmname_lbl)
+        self.layout.addWidget(self.farmname_ledit)
+        self.close_button = QPushButton("COMPLETE")
+        self.close_button.clicked.connect(self.accept) # Close dialog on button click
+        self.layout.addWidget(self.close_button)
+        self.setLayout(self.layout)
+        
+        
+
 def ShowDialogPopup(self, title = "",message="", width = 300, height = 100):
     dialog = ModalDialog(self, title, message, width, height)
     dialog.exec()
@@ -191,9 +222,6 @@ def opencv_draw_label(img, text, pos, bg_color):
 
 
 
-class hoverLayout:
-
-    pass
 
 class clickedLayoutWidget(QWidget):
     def __init__(self, parent = None):
@@ -252,6 +280,45 @@ class clickableLabel(QLabel):
         super().mousePressEvent(event)
 
         
+    pass
+
+def initCSV():
+    # with open("ModulesSheet.csv", mode = 'w') as csvfile:
+    #     fields = modules_dict_list[0].keys() #The module dictionary acts as a template for all the fields in the excel sheet
+    #     w = csv.DictWriter(csvfile, delimiter=',', fieldnames=fields)
+    #     w.writeheader()
+    df = pd.DataFrame(modules_dict_framework)
+
+    # Write the DataFrame to an Excel file
+    df.to_excel('ModulesSheet.xlsx', index=False, sheet_name='MyModules') 
+
+# def addModule(self):
+#     module_entry = {"Module Name": self.module0.name_identifier, "Module RFID": self.module0.rfid, "Weight": self.module0.weight, "Lint Moisture":self.module0.LM, "Seed Moisture": self.module0.SM}
+#     self.saveEntryToCSV()
+#     self.mawp = ShowDialogPopup(self, "MODULE ADDED TO DATABASE")
+#     self.mawp.exec()
+#     pass
+    
+
+def saveEntryToCSV(moduleToSave):
+    file_path = 'ModulesSheet.xlsx'
+    df_existing = pd.read_excel(file_path)
+
+    moduleToSave_dict = {
+        "Grower/Farm" : moduleToSave.farm_name,
+        "Module Name": moduleToSave.name_identifier,
+        "Module RFID": moduleToSave.rfid,
+        "Weight": moduleToSave.weight,
+        "Lint Moisture":moduleToSave.LM,
+        "Seed Moisture": moduleToSave.SM
+    }
+    df_new_entry = pd.DataFrame([moduleToSave_dict])
+
+    # Concatenate the existing DataFrame with the new entry
+    df_updated = pd.concat([df_existing, df_new_entry], ignore_index=True)
+
+    # 4. Write the updated DataFrame back to the Excel file
+    df_updated.to_excel(file_path, index=False)
     pass
 
 

@@ -18,7 +18,7 @@ import csv
 from pymodbus.client.tcp import ModbusTcpClient
 import asyncio
 import numpy as np
-import csv
+import pandas as pd
 
 import utils
 
@@ -44,14 +44,13 @@ STRIDE_PORT = 502
 
 ROOT_DIR = Path(__file__).parent
 
-modules_dict_list = [
-    {"Module Name": "Identifier", "Module RFID": "00000", "Weight": 0, "Lint Moisture":0, "Seed Moisture": 0}
-]
+Farm_name =""
 
 
 TESTMODE = False
 
 class ModuleData:
+    farm_name = " "
     name_identifier = ""
     rfid = "00000"
     weight = 0
@@ -93,9 +92,14 @@ class repeatFunction(threading.Thread):
 
 ROOT_DIR = Path(__file__).parent
 
-modules_dict_list = [
-    {"Module Name": "Identifier", "Module RFID": "00000", "Weight": 0, "Lint Moisture":0, "Seed Moisture": 0}
-]
+modules_dict_framework = {
+        "Grower/Farm" : ['ABE'],
+        "Module Name": ['Identifier'],
+        "Module RFID": ['00000'],
+        "Weight": [0],
+        "Lint Moisture":[100],
+        "Seed Moisture": [0]
+    }
 
 class ModuleData:
     name_identifier = ""
@@ -138,12 +142,13 @@ class MainWindow(QMainWindow):
     inclodata = InclonometerData()
     stridedata0 = StrideData()
     curmoisturedata = (0,0) #Tuple which store the seed and lint moisture content respectively
-
     curweightdata = 0
 
     fTick_retrieveStrideData = None
     
+    emw = None
     hint1_popup = None
+    farmNameDialog = None
 
     def enable_TESTMODE():
         global M_Camera_IP
@@ -171,9 +176,12 @@ class MainWindow(QMainWindow):
         self.setFixedSize(self.Window_W, self.Window_H)
         self.showFullScreen()
         self.initUI()
-        self.initCSV()
+        utils.initCSV()
+        self.getFarmName()
+        global Farm_name
+        Farm_name = self.farmNameDialog.farmname_ledit.text()
         utils.ShowDialogPopup(self,"NOTE:","Press CTRL + ESC to close application when ready.")
-
+        
 
 
     #Custom function to setup UI Elements
@@ -281,7 +289,7 @@ class MainWindow(QMainWindow):
 
 
         self.addModule_btn = QPushButton("ADD MODULE")
-        self.addModule_btn.clicked.connect(self.addModule)
+        self.addModule_btn.clicked.connect(self.editModule)
         self.addModule_btn.setMinimumHeight(300)
         self.addModule_btn.setMinimumWidth(200)
         
@@ -424,16 +432,34 @@ class MainWindow(QMainWindow):
         self.module0 = tempmod
         self.updateDisplay_modData()
 
-
-    def addModule(self):
-        module_entry = {"Module Name": self.module0.name_identifier, "Module RFID": self.module0.rfid, "Weight": self.module0.weight, "Lint Moisture":self.module0.LM, "Seed Moisture": self.module0.SM}
-        modules_dict_list.append(module_entry)
-        self.saveEntryToCSV()
-        self.mawp = utils.ShowDialogPopup(self, "MODULE ADDED TO DATABASE")
-        self.mawp.exec()
-        pass
+    def editModule(self):
+        self.updateModule()
+        if self.emw == None:
+            self.emw = EditModule_Window(parentWindow=self)
+            self.emw.parentWindow = self
+            self.emw.show()
+            self.setDisabled(True)
+        else:    
+            self.emw.show()
+            self.setDisabled(True)
     
-    def createMainFeed(self):
+
+    def updateModule(self):
+        if self.stridedata0 is not None:
+            #Get inclonometer data readings from stride 4mA-20mA X and Y
+            self.curinclodata = utils.getIncloData(self.stridedata0.analog0/1000,self.stridedata0.analog2/1000)
+            #Get Weight Data from stride 0-20mA
+            self.curweightdata =  self.stridedata0.analog4
+            #Get MTX-V(Moisture) data from stride 0-10V
+            self.curmoisturedata = self.stridedata0.analog7
+            self.module0.rfid = "000000"
+            self.module0.weight = utils.get_weight_lbs(self,self.curweightdata/1000, self.stridedata0.analog0/1000, self.stridedata0.analog2/1000, 10000)
+            self.module0.SM = (utils.getMoistureContent_MTXV(self.curmoisturedata))[0]
+            self.module0.LM = (utils.getMoistureContent_MTXV(self.curmoisturedata))[1]
+
+    def getFarmName(self):
+        self.farmNameDialog = utils.GetInputDialog(message="Enter the name of the Farm Location")
+        self.farmNameDialog.exec()
         pass
 
     def updateDisplay_modData(self):
@@ -444,22 +470,7 @@ class MainWindow(QMainWindow):
         self.lm_lbl.setText(f"Lint Moisture = {utils.getMoistureContent_MTXV(self.curmoisturedata)[1]}%")
         pass
     
-    def initCSV(self):
-        with open("ModulesSheet.csv", mode = 'w') as csvfile:
-            fields = modules_dict_list[0].keys() #The module dictionary acts as a template for all the fields in the excel sheet
-            w = csv.DictWriter(csvfile, delimiter=',', fieldnames=fields)
-            w.writeheader()
 
-    def saveEntryToCSV(self):
-        i = 0
-        with open("ModulesSheet.csv", mode = 'a') as csvfile:
-            for module_entry in modules_dict_list:
-                if i != 0:
-                    fields = modules_dict_list[0].keys()
-                    w = csv.DictWriter(csvfile, delimiter=',', fieldnames=fields)
-                    w.writerow(module_entry)
-                i+=1
-        pass
     
     def closeEvent(self, event: QCloseEvent):
         #On window close re-enable main window and do not save changes that were made
@@ -708,17 +719,16 @@ class MainFeed_Window(QWidget):
         #self.setWindowModality(Qt.ApplicationModal)
         self.layout = QVBoxLayout()
         self.btn_layout = QHBoxLayout()
-
         self.feed_lbl = QLabel()
         self.feed_lbl.minimumWidth = self.width()
         self.feed_lbl.minimumHeight = self.height()
         self.feed_lbl.setStyleSheet("background-color: #000000;")
 
-        self.editModule_btn = QPushButton("EDIT MODULE")
+        self.editModule_btn = QPushButton("ADD MODULE")
         self.editModule_btn.clicked.connect(self.editModule)
         self.editModule_btn.setStyleSheet("""
         QPushButton {
-            background-color: blue; 
+            background-color: red; 
             color: white;
             border-radius: 0px;
             padding: 10px 5px;
@@ -755,6 +765,7 @@ class MainFeed_Window(QWidget):
         self.layout.addWidget(self.feed_lbl)
         self.btn_layout.addWidget(self.editModule_btn)
         self.btn_layout.addWidget(self.close_btn)
+
         self.layout.addLayout(self.btn_layout)
         self.setLayout(self.layout)
 
@@ -850,13 +861,18 @@ class EditModule_Window(QWidget):
     tempModule = None
     def __init__(self, parentWindow):
         super().__init__()
-
+        self.setWindowTitle("MODULE READY TO BE ADDED")
+        self.parentWindow = parentWindow
         self.tempModule = parentWindow.module0
         layout = QVBoxLayout()
         self.data_layout = QGridLayout()
         #ALL DATA HERE NEEDS TO BE CHANGED TO COME FROM THE MODULE CLASS INSTANCE WHICH WAS MADE
+        self.farmname_lbl = QLabel("Grower/Farm: ")
+        self.farmname_ledit = QLineEdit()
+        self.farmname_ledit.setText(Farm_name)
         self.modname_lbl = QLabel("Module Identifier: ")
         self.modname_ledit = QLineEdit()
+        self.modname_ledit.setText("")
         self.modname_ledit.setPlaceholderText("Enter an identifier for the module")
         self.modrfid_lbl = QLabel("Module RFID: ")
         self.modrfid_ledit = QLineEdit()
@@ -871,25 +887,29 @@ class EditModule_Window(QWidget):
         self.modSM_ledit = QLineEdit()
         self.modSM_ledit.setText(f"{self.tempModule.SM}%")
         self.setStyleSheet("background-color: #fff;")
-
+        self.cancel_btn = QPushButton("CANCEL")
+        self.cancel_btn.clicked.connect(self.close)
         self.done_btn = QPushButton("ADD MODULE TO DATABASE")
-
         self.done_btn.clicked.connect(self.OnEditModuleCompleted)
-        
+
+
         #Add widgets to grid layout
-        self.data_layout.addWidget(self.modname_lbl,0,0)
-        self.data_layout.addWidget(self.modname_ledit,0,1)
-        self.data_layout.addWidget(self.modrfid_lbl,1,0)
-        self.data_layout.addWidget(self.modrfid_ledit,1,1)
-        self.data_layout.addWidget(self.modweight_lbl,2,0)
-        self.data_layout.addWidget(self.modweight_ledit,2,1)
-        self.data_layout.addWidget(self.modSM_lbl,3,0)
-        self.data_layout.addWidget(self.modSM_ledit,3,1)
-        self.data_layout.addWidget(self.modLM_lbl,4,0)
-        self.data_layout.addWidget(self.modLM_ledit,4,1)
+        self.data_layout.addWidget(self.farmname_lbl,0,0)
+        self.data_layout.addWidget(self.farmname_ledit,0,1)
+        self.data_layout.addWidget(self.modname_lbl,1,0)
+        self.data_layout.addWidget(self.modname_ledit,1,1)
+        self.data_layout.addWidget(self.modrfid_lbl,2,0)
+        self.data_layout.addWidget(self.modrfid_ledit,2,1)
+        self.data_layout.addWidget(self.modweight_lbl,3,0)
+        self.data_layout.addWidget(self.modweight_ledit,3,1)
+        self.data_layout.addWidget(self.modSM_lbl,4,0)
+        self.data_layout.addWidget(self.modSM_ledit,4,1)
+        self.data_layout.addWidget(self.modLM_lbl,5,0)
+        self.data_layout.addWidget(self.modLM_ledit,5,1)
 
         #vertical layout widgets
         layout.addLayout(self.data_layout)
+        layout.addWidget(self.cancel_btn)
         layout.addWidget(self.done_btn)
         self.setLayout(layout)
 
@@ -910,6 +930,7 @@ class EditModule_Window(QWidget):
 
     def editCurModule(self):
         if self.tempModule is not None:
+            self.tempModule.farm_name = self.farmname_ledit.text()
             self.tempModule.name_identifier = self.modname_ledit.text()
             self.tempModule.rfid = int(self.modrfid_ledit.text())
             self.tempModule.weight = int(re.sub(r'[^0-9]', '', self.modweight_ledit.text()))
@@ -931,6 +952,7 @@ class EditModule_Window(QWidget):
         else:
             pass
         self.editCurModule()
+        utils.saveEntryToCSV(self.tempModule)
         self.parentWindow.setDisabled(False)
         self.close()
         pass
