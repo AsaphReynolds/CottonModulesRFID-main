@@ -34,7 +34,7 @@ def retrieveStrideDATA(self, stridedata_instance,c):
             w = c.write_coil(address=161, value=True)
             if r:
 
-                print("RESISTERS FOUND")
+                #print("RESISTERS FOUND")
                 i = 35
                 
                 for register in r.registers:

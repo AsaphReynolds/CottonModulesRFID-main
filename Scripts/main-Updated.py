@@ -147,6 +147,7 @@ class MainWindow(QMainWindow):
     fTick_retrieveStrideData = None
     
     emw = None
+    cmw = None
     hint1_popup = None
     farmNameDialog = None
 
@@ -292,6 +293,11 @@ class MainWindow(QMainWindow):
         self.addModule_btn.clicked.connect(self.editModule)
         self.addModule_btn.setMinimumHeight(300)
         self.addModule_btn.setMinimumWidth(200)
+
+        self.checkModules_btn = QPushButton("CHECK MODULES")
+        self.checkModules_btn.clicked.connect(self.checkModules)
+        self.checkModules_btn.setMinimumHeight(100)
+        self.checkModules_btn.setMinimumWidth(100)
         
         #STYLING UI 
 
@@ -328,6 +334,22 @@ class MainWindow(QMainWindow):
             background-color: #ab0000; 
         }
     """)
+        self.checkModules_btn.setStyleSheet("""
+        QPushButton {
+            background-color: blue; 
+            color: white;
+            border-radius: 0px;
+            padding: 10px 5px;
+            font-size: 14px;
+            font-weight: 900;                             
+        }
+        QPushButton:hover {
+            background-color: #b03030; 
+        }
+        QPushButton:pressed {
+            background-color: #ab0000; 
+        }
+    """)
         BottomBar_H_Layout = QHBoxLayout()
         BottomBar_H_Layout.addWidget(self.weight_lbl,0,Qt.AlignmentFlag.AlignLeft)
         BottomBar_H_Layout.addWidget(self.sm_lbl, 0,Qt.AlignmentFlag.AlignLeft)
@@ -342,7 +364,7 @@ class MainWindow(QMainWindow):
         grid.addWidget(self.feed1_lbl, 0,0)
         grid.addLayout(BottomBar_H_Layout, 2,0,alignment= Qt.AlignmentFlag.AlignLeft)
         grid.addWidget(self.addModule_btn, 1,4, alignment= Qt.AlignmentFlag.AlignRight)
-
+        grid.addWidget(self.checkModules_btn, 2,1, alignment= Qt.AlignmentFlag.AlignRight)
         #grid.addWidget(self.pausevideo_btn, 1,2)
         central_widget.setLayout(grid)
 
@@ -471,11 +493,24 @@ class MainWindow(QMainWindow):
         pass
     
 
-    
+    def checkModules(self):
+        #Load the modules list view window 
+        if self.cmw == None:
+            self.cmw = ModuleViewWindow(parentWindow=self)
+            self.cmw.show()
+            self.setDisabled(True)
+        else:    
+            self.cmw.show()
+            self.setDisabled(True)
+        pass
+
+
+
     def closeEvent(self, event: QCloseEvent):
         #On window close re-enable main window and do not save changes that were made
         self.mfw = None
         self.emw = None
+        self.cmw = None
         if self.fTick_retrieveStrideData is not None:
             self.fTick_retrieveStrideData.stop()
             self.fTick_retrieveStrideData = None
@@ -864,6 +899,8 @@ class EditModule_Window(QWidget):
         self.setWindowTitle("MODULE READY TO BE ADDED")
         self.parentWindow = parentWindow
         self.tempModule = parentWindow.module0
+        self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+
         layout = QVBoxLayout()
         self.data_layout = QGridLayout()
         #ALL DATA HERE NEEDS TO BE CHANGED TO COME FROM THE MODULE CLASS INSTANCE WHICH WAS MADE
@@ -953,10 +990,20 @@ class EditModule_Window(QWidget):
             pass
         self.editCurModule()
         utils.saveEntryToCSV(self.tempModule)
+        self.updateModulesDict(self.tempModule)
         self.parentWindow.setDisabled(False)
         self.close()
         pass
     pass
+
+    def updateModulesDict(self,module):
+        modules_dict_framework["Grower/Farm"].append(module.farm_name)
+        modules_dict_framework["Module Name"].append(module.name_identifier)
+        modules_dict_framework["Module RFID"].append(module.rfid)
+        modules_dict_framework["Weight"].append(module.weight)
+        modules_dict_framework["Lint Moisture"].append(module.LM)
+        modules_dict_framework["Seed Moisture"].append(module.SM)
+        pass
 
     def keyPressEvent(self, event):
         """
@@ -966,6 +1013,121 @@ class EditModule_Window(QWidget):
             event.key() == Qt.Key.Key_Escape:
             #Close the program 
             self.close()
+
+
+class ModuleWidget(QWidget):
+    def __init__(self, parentWindow, farm_name, module_name, module_rfid):
+        super().__init__()
+        self.textQHBoxLayout = QHBoxLayout()
+        self.farmname_lbl    = QLabel(farm_name)
+        self.name_lbl  = QLabel(module_name)
+        self.rfid_lbl  = QLabel(f"{module_rfid}")
+        self.textQHBoxLayout.addWidget(self.farmname_lbl)
+        self.textQHBoxLayout.addWidget(self.name_lbl)
+        self.textQHBoxLayout.addWidget(self.rfid_lbl)
+
+        self.setLayout(self.textQHBoxLayout)
+        # setStyleSheet
+        self.farmname_lbl.setStyleSheet('''
+            color: rgb(0, 0, 255);f
+        ''')
+        self.name_lbl.setStyleSheet('''
+            color: rgb(255, 0, 0);
+        ''')
+        self.name_lbl.setStyleSheet('''
+            color: rgb(20, 255, 0);
+        ''')
+
+
+
+class ModuleViewWindow(QWidget):
+    parentWindow = None
+    def __init__(self, parentWindow = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        self.parentWindow = parentWindow
+        self.setWindowTitle('SAVED MODULES')
+        self.setWindowIcon(QIcon(f"{ROOT_DIR}/haybale-icon.png"))
+        self.setGeometry(100, 100, 400, 600)
+
+        layout = QGridLayout(self)
+        self.setLayout(layout)
+
+        self.list_widget = QListWidget(self)
+
+        self.createList()
+        
+        layout.addWidget(self.list_widget, 0, 0, 4, 1)
+
+        edit_button = QPushButton('Edit')
+        edit_button.clicked.connect(self.edit)
+
+        remove_button = QPushButton('Remove')
+        remove_button.clicked.connect(self.remove)
+
+        clear_button = QPushButton('Clear')
+        clear_button.clicked.connect(self.clear)
+
+        layout.addWidget(edit_button, 1, 1)
+        layout.addWidget(remove_button, 2, 1)
+        layout.addWidget(clear_button, 3, 1)
+
+        # show the window
+        self.show()
+
+    #function to add the custom widgets to the list based on the dictionary of modules
+    def createList(self):
+        self.list_widget.clear()
+        for i in range(len(modules_dict_framework["Seed Moisture"])): # -1 because there is the example module stored in the dictionary as well
+            #iterate based on the length of a list in the dictionary
+            ModuleCustomQWidget = ModuleWidget(self, modules_dict_framework["Grower/Farm"][i],modules_dict_framework["Module Name"][i], modules_dict_framework["Module RFID"][i])
+            ModuleListWidgetItem = QListWidgetItem(self.list_widget)
+            # Set size hint
+            ModuleListWidgetItem.setSizeHint(ModuleCustomQWidget.sizeHint())
+            # Add QListWidgetItem into QListWidget
+            self.list_widget.addItem(ModuleListWidgetItem)
+            self.list_widget.setItemWidget(ModuleListWidgetItem, ModuleCustomQWidget)
+            pass
+        pass
+
+    def add(self):
+        text, ok = QInputDialog.getText(self, 'Add a New Wish', 'New Wish:')
+        if ok and text:
+            self.list_widget.addItem(text)
+
+    def edit(self):
+        text, ok = QInputDialog.getText(self, 'edit a New Wish', 'New Wish:')
+        if ok and text:
+            current_row = self.list_widget.currentRow()
+            self.list_widget.insertItem(current_row+1, text)
+
+    def remove(self):
+        current_row = self.list_widget.currentRow()
+        if current_row >= 0:
+            current_item = self.list_widget.takeItem(current_row)
+            del current_item
+    def showEvent(self, event: QShowEvent):
+            # This code runs when the window is shown
+            self.createList()
+            super().showEvent(event)
+
+    def closeEvent(self, event: QCloseEvent):
+        #On window close re-enable main window and do not save changes that were made
+        self.parentWindow.setDisabled(False)
+        pass
+    
+    def keyPressEvent(self, event):
+        """
+        This method is called when a key is pressed.
+        """
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier and \
+            event.key() == Qt.Key.Key_Escape:
+            #Close the program 
+            self.close()
+    
+    def clear(self):
+        self.list_widget.clear()
+
 
 
 def main():
